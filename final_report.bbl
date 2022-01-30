@@ -1,0 +1,47 @@
+\begin{thebibliography}{1}
+
+\bibitem{net}
+Felipe Cucker and Steve Smale.
+\newblock On the mathematical foundations of learning.
+\newblock {\em Bulletin of the American Mathematical Society}, 39:1--49, 2002.
+
+\bibitem{algebra}
+L.~(Ed.) Hogben.
+\newblock {\em Handbook of Linear Algebra (2nd ed.)}.
+\newblock Chapman and Hall/CRC., 2013.
+
+\bibitem{svd_rank}
+Hopcroft and Kannan.
+\newblock Lecture notes (forthcoming book).
+\newblock [EB/OL], 2012.
+\newblock
+  \url{https://www.cs.princeton.edu/courses/archive/spring12/cos598C/svdchapter.pdf}.
+
+\bibitem{nmsemble}
+Sanjiv Kumar, Mehryar Mohri, and Ameet Talwalkar.
+\newblock Ensemble nystrom method.
+\newblock In {\em Advances in Neural Information Processing Systems 22 -
+  Proceedings of the 2009 Conference}, Advances in Neural Information
+  Processing Systems 22 - Proceedings of the 2009 Conference, pages 1060--1068,
+  2009.
+\newblock 23rd Annual Conference on Neural Information Processing Systems, NIPS
+  2009 ; Conference date: 07-12-2009 Through 10-12-2009.
+
+\bibitem{kernel}
+Jianbo Shi and J.~Malik.
+\newblock Normalized cuts and image segmentation.
+\newblock {\em IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  22(8):888--905, 2000.
+
+\bibitem{meka}
+Si~Si, Cho-Jui Hsieh, and Inderjit~S. Dhillon.
+\newblock Memory efﬁcient kernel approximation.
+\newblock In {\em International Conference on Machine Learning (ICML)}, jun
+  2014.
+
+\bibitem{nm}
+Christopher K.~I. Williams and Matthias~W. Seeger.
+\newblock Using the nystr{\"o}m method to speed up kernel machines.
+\newblock In {\em NIPS}, 2000.
+
+\end{thebibliography}

@@ -1,0 +1,520 @@
+\documentclass[12pt, a4paper, oneside]{article}
+\usepackage{amsmath, amsthm, amssymb, bm, graphicx, hyperref, mathrsfs}
+\usepackage{geometry}
+\usepackage{amsmath}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\usepackage{hyperref}
+\usepackage{mathrsfs}
+\usepackage[ruled, lined, linesnumbered, commentsnumbered, longend]{algorithm2e}
+\usepackage{booktabs}
+
+\title{\textbf{A Brief Report of Low Rank Kernel Matrix Approximation}}
+\author{Yan Ren \\ 2021103739}
+\date{\today}
+\linespread{1.5}
+\newcounter{problemname}
+\newenvironment{problem}{\stepcounter{problemname}\par\noindent\textsc{Problem \arabic{problemname}. }}{\\\par}
+\newenvironment{solution}{\par\noindent\textsc{Solution. }}{\\\par}
+\newenvironment{note}{\par\noindent\textsc{Note of Problem \arabic{problemname}. }}{\\\par}
+\newcommand{\nysm}{Nystr$\ddot{\rm o}$m Method}
+\geometry{a4paper, scale = 0.8}
+
+\begin{document}
+	
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction} % =====================================================
+\label{sec:i}
+
+The problem of low rank matrix approximation is raised due to the rapid increase of the data size. Although there are many methods theoretically best for specific problems, the time complexity and storage usage aften stop people from using them pratically. The problem is especially severe in the case of $n \gg d$, where $n$ means data size and $d$ indicates the dimension. For example, when applying kernel methods, kernel matrix of size $n \times n$ is computed as an important intermediate matrix. But the computation is time-consuming and the storage is also expensive for such a huge matrix. Low rank approximation of these matrices are studied as one of main solutions. Other solutions include sketch, which has been focused in class.
+
+\subsection{Low rank Approximation}
+\label{subsec:lra}
+
+For a given matrix $G$, low rank approximation aims to find a rank-k matrix $\hat{G}$ to minimize $\Vert G - \hat{G} \Vert $, where $dim(G) = n\times n,\ dim(\hat{G}) = k \times k,\ k < n$. Singular Value Decomposition (SVD) yields the best rank-k approximation. However, SVD is time-consuming and therefore prohibiting in reality. Other methods like \nysm\ improve the time and space efficiency with some estimation accuracy lost. Theory about SVD is reviewed in Section \ref{sec:svd}.
+
+
+\subsection{Kernel Methods}
+\label{subsec:km}
+
+Kernel methods \cite{kernel} are machine learning algorithms
+that first map samples from input space to a high-dimensional feature space. For example, for the tasks of clustering, kernel methods use kernel functions to project data points to higher dimension. If points of different groups are linearly separable in higher dimension but not in the observed lower dimension, kernel methods achieve higher accuracy score. Nonetheless, $n\times n$ kernel matrix $G$ is dependent on data size, and thus the storage and computation of kernel matrix becomes tricky if $n$ is large. 
+
+Let us note kernel function as $K(x_i, x_j), i, j = 1,...,n$, and kernel matrix as $G_{n\times n}$ where $G_{ij} = K(x_i, x_j)$. The notation is used below.
+
+In a word, low rank approximation is significant to solve the storage and computation cost of large dataset, and kernel matrix is an important and typical object. The rest of the report is outlined as follows. Section \ref{sec:svd} reviews SVD and the best rank-k approximation. Section \ref{sec:nm} illustrated a method often used to get rank-k approximation with respectively large $\Vert G - \hat{G} \Vert $ but more time and storage efficient compared with SVD. The standard \nysm\ is discussed in detail. Section \ref{sec:bka} is more related to kernel matrix approximation problem. BKA is introduced and the advantages of performing k-means before approximation is proved. Last, in section \ref{sec:meka}, a state-of-art method Memory Efficient Kernel Approximation (MEKA) (first proposed in reference \cite{meka}) is introduced. Content related to $\epsilon -covering$ is used in this part. Summary and discussion are in Section \ref{sec:sd}.
+
+\section{SVD} % =====================================================
+\label{sec:svd}
+
+Singular Value Decomposition (SVD) of a matrix is a factorization of that matrix into three matrices. In our case of rank-k approximation, the best rank-k approximation solution is gotten as well.
+
+\subsection{SVD}
+\label{subsec:ssvd}
+
+\begin{theorem}
+	\label{thm:svd}
+	(Singular value decomposition). Let $\mathbf{A}$ be an $n \times d$ matrix with rank $r$. Then there exist matrices $\mathbf{U}, \mathbf{D}$ and $\mathbf{V}$ such that
+	$$
+	\mathbf{A}=\mathbf{U D V}^{\top}
+	$$
+	where $\mathbf{U}$ is an $n \times r$ orthogonal matrix, $\mathbf{V}$ is an $d \times r$ orthogonal matrix, and $\mathbf{D}$ is an $r \times r$ matrix with $d_{i, j}=0$ for $i \neq j$, and $d_{1,1} \geq d_{2,2} \geq \cdots \geq d_{r, r}>0$.
+\end{theorem}
+
+Theorem \ref{thm:svd} is proved by mathematical induction, which is discussed in class, thus omitted here. The notation is used below.
+
+\subsection{Best Rank-k Approximation}
+\label{subsec:brka}
+
+\begin{theorem}
+	\label{thm:bestk}
+	(Echart-Young Theorem). Suppose $\mathbf{A} \in \mathbb{R}^{n \times d}$. Let $\mathbf{A}=\mathbf{U D V}^{\top}$ be the $S V D$ of $\mathbf{A}$.
+	Let $\mathbf{U}_{k}$ and $\mathbf{V}_{k}$ denote the first $k$ columns of $\mathbf{U}$ and $\mathbf{V}$, respectively. Let $\mathbf{D}_{k}=\operatorname{diag}\left(d_{1,1}, \ldots, d_{k, k}\right) .$
+	Define $\mathbf{A}_{k}:=\mathbf{U}_{k} \mathbf{D}_{k} \mathbf{V}_{k}^{\top}=\sum_{i=1}^{k} d_{i, i} \mathbf{u}_{k} \mathbf{v}_{k}^{\top}$. Then for any $\mathbf{B} \in \mathbb{R}^{n \times d}$ with rank $k$,
+	$$
+	\left\|\mathbf{A}-\mathbf{A}_{k}\right\| \leq\|\mathbf{A}-\mathbf{B}\|
+	$$
+\end{theorem}
+
+Proof is omitted to avoid unnecessary and redundant copy from the handout in class.
+
+\subsection{SVD Computation and Drawbacks}
+\label{subsec:dsvd}
+
+As we see in Therorem \ref{thm:bestk}, SVD yeilds good theoretical property. However, it is not practical due to computation cost.
+
+\paragraph{Power Method}
+
+Reference \cite{algebra} summarizes many SVD computation methods. By conducting eigenvalue decomposition of $AA^T$ (a positive-semidefinite matrix), SVD is conducted. Relative efficient ideas of this kind is always to find square roots of eigenvalues of $AA^T$ without actually computing it.
+
+Power method \cite{svd_rank} is one of this kind. Still, $dim(X) = n\times d$ means the data matrix. According to Theorem \ref{thm:svd}, $\exists$ orthogonal matrix $U\ (dim(U) = n\times k),\ V\ (dim(V) = k\times d)$ and diagonal matrix $\Sigma\ (dim(\Sigma) = k\times k)$ subject to
+\begin{equation}
+	A = U\Sigma V^T = \sum_{i = 1}^{r}{d_{i, i}u_iv_i^T}
+\end{equation}
+
+Define $B = AA^T$
+
+\begin{equation}
+	\begin{aligned}
+		B &=AA^T=\left(\sum_{i} d_{i,i} \mathbf{u}_{\mathbf{i}} \mathbf{v}_{\mathbf{i}}^{T}\right)\left(\sum_{j} \sigma_{j} \mathbf{v}_{\mathbf{j}} \mathbf{u}_{\mathbf{j}}^{T}\right) \\
+		&=\sum_{i, j} d_{i,i} \sigma_{j} \mathbf{u}_{\mathbf{i}} \mathbf{v}_{\mathbf{i}}^{T} \mathbf{v}_{\mathbf{j}} \mathbf{u}_{\mathbf{j}}^{T}=\sum_{i, j}d_{i,i} \sigma_{j} \mathbf{u}_{\mathbf{i}}\left(\mathbf{v}_{i}^{T} \cdot \mathbf{v}_{\mathbf{j}}\right) \mathbf{u}_{\mathbf{j}}^{T} \\
+		&=\sum_{i} d_{i,i}^{2} \mathbf{u}_{\mathbf{i}} \mathbf{u}_{\mathbf{i}}^{T}
+	\end{aligned}
+\end{equation}
+
+Similarly, we have
+
+\begin{equation}
+	\label{eq:power}
+	B^{k}=\sum_{i} d_{i,i}^{2 k} \mathbf{u}_{\mathbf{i}} \mathbf{u}_{\mathbf{i}}^{T}\to d_{1,1}^{2k}\mathbf{u_1}\mathbf{u_1}^T.
+\end{equation}
+
+When $k \to \infty$, $\frac{d_{i,i}^k}{d_{1,1}^k} \to 0$, thus the last part of formula \ref{eq:power} exists.
+
+In this way, $B^k \to d_{1,1}^{2k}u_1u_1^T$ provides a way to get $u_1$ and $d_{1,1}$ by successively powering $B$. However, powering matrix $B$ will be time-consuming. A substitute way is to calculate $B^k \mathbf{x}$, where $x$ is a random unit vector. It is clear that $B^{k} \mathbf{x}=A A^{T}\left(B^{k-1} \mathbf{x}\right)$. According to formula \ref{eq:power}, $B^{k} \mathbf{x} \approx d_{1,1}^{2k}\mathbf{u_1}(\mathbf{u_1}^T \mathbf{x})$. The right side of the equation is scalar operation, which is much faster than matrix powering.
+
+The time complexity of power method in SVD is $O(kn^2)$. It is much faster than operating eigenvalue decomposition on $AA^T$, but still prohibitive in practice when $n$ is too large.
+
+\section{\nysm} % =====================================================
+\label{sec:nm}
+
+When $n$ gets too large, one natural way is sampling. The \nysm\ \cite{nm} is one of the most widely used technique to approximate the kernel matrix given a sampled subset of columns. Using Standard \nysm, $G$ can be approximated by $\tilde{G} = C W_k^+ C^T$. The proof of this in the case of low rank kernel matrix approximation is performed in subsection \ref{subsec:snm}. The full proof can be found in reference \cite{nm}.
+
+\subsection{\nysm\ in Low Rank Approximation}
+\label{subsec:snm}
+
+\begin{theorem} (\nysm \ in Low Rank Approximation) \\
+	\label{thm:nmlr}
+	$G$ is a kernel matrix for some kernel method. Consider the first $k<n$ points in the data set. Then there exists a matrix $\tilde{G}$ of rank $k$ : $\tilde{G}=C_{n\times k} W_k^+ C^T_{k\times n}$, where $(C_{n\times k})_{ij} = K(x_i, x_j),\ i = 1, ..., n,\ j = 1,..., k$.
+\end{theorem}
+
+\begin{proof}
+Suppose SVD of $X$ is $X_{n \times d}=U_{n \times q} \Sigma_{q \times q} V_{q \times d}^{\top}$
+\begin{equation}
+	\left\{\begin{array}{l}X=U \Sigma V^{\top} \\ X^{\top}=V \Sigma U^{\top}\end{array} \Rightarrow\left\{\begin{array}{l}X X^{\top}=U \Sigma^{2} U^{\top} \\ X^{\top} X=V \Sigma^{2} V^{\top}\end{array}\right.\right.
+\end{equation}
+Let 
+\begin{equation}
+	\left(X_{k}\right)_{k \times d}:=\left(U_{k}\right)_{k \times q}\left(\Sigma_{k}\right)_{q \times q}\left(V_{k}^{\top}\right)_{q \times d}
+\end{equation}
+Define
+\begin{equation}
+	\left\{\begin{array}{ll}
+		W_{n \times n} &=X X^{\top}=U \Sigma^{2} U^{\top}
+		\\
+		\left(W_{k}\right)_{k \times k}&=X_{k} X_{k}^{\top}=\left(U_{k}\right)_{k \times q}\left(\Sigma_{k}\right)_{q \times q}^{2}\left(U_{k}\right)^{\top}_{ q \times k}
+	\end{array}\right.
+\end{equation}
+It is clear that $U=X V \Sigma^{-1}$. \\
+Use $\tilde{U}$ to approximate $U$.
+\begin{equation}
+	\label{eq:u}
+	\begin{aligned}
+		\tilde{U}: &=X V_{k} \Sigma_{k}^{-1} \\
+		&=X X_{k}^{\top} U_{k} \Sigma_{k}^{-1} \Sigma_{k}^{-1} \\
+		&=X X_{k}^{\top} U_{k} \Sigma_{k}^{-2}
+	\end{aligned}
+\end{equation}
+Define $\tilde{G}:=\tilde{U} \Sigma_{k}^{2} \tilde{U}^{\top}$
+\begin{equation}
+	\begin{aligned}
+		\tilde{G} &=X X_{k}^{\top} U_{k} \Sigma_{k}^{-2} \Sigma_{k}^{2} \Sigma_{k}^{-2} U_{k}^{\top} X_{k} X^{\top} \\
+		&=\left(X X_{k}^{\top}\right)\left(U_{k} \Sigma_{k}^{-2} U_{k}^{\top}\right)\left(X X_{k}^{\top}\right)^{\top} \\
+		&=\left(X X_{k}^{\top}\right)\left(W_{k}^{-1}\right)\left(X X_{k}^{\top}\right)^{\top} \\
+		&=C_{n \times k} W_{k}^{+} C_{k \times n}^{\top}
+	\end{aligned}
+\end{equation}
+\end{proof}
+
+\subsection{Error Bound}
+\label{subsec:eb}
+
+According to the proof of Theorem \ref{thm:nmlr}, the approximation occurs in equation \ref{eq:u}. Theorem \ref{thm:nmlr} suggests one possible approximation. Theorem \ref{thm:eb} shows that the error can be bounded with probability. 
+
+\begin{theorem} 
+	\label{thm:eb}
+	(Error Bound of Standard \nysm) \\
+	Let $\widetilde{\mathbf{K}}$ denote the rank- $k$ Nyström approximation of $\mathbf{K}$ based on $m$ columns sampled uniformly at random without replacement from $\mathbf{K}$, and $\mathbf{K}_{k}$ the best rank- $k$ approximation of $\mathbf{K}$. Then, with probability at least $1-\delta$, the following inequalities hold for any sample of size $m$ :
+	$$
+	\begin{gathered}
+		\|\mathbf{K}-\widetilde{\mathbf{K}}\|_{2} \leq\left\|\mathbf{K}-\mathbf{K}_{k}\right\|_{2}+\frac{2 n}{\sqrt{m}} \mathbf{K}_{\max }\left[1+\sqrt{\frac{n-m}{n-1 / 2} \frac{1}{\beta(m, n)} \log \frac{1}{\delta}} d_{\max }^{\mathbf{K}} / \mathbf{K}_{\max }^{\frac{1}{2}}\right] \\
+		\|\mathbf{K}-\widetilde{\mathbf{K}}\|_{F} \leq\left\|\mathbf{K}-\mathbf{K}_{k}\right\|_{F}+\left[\frac{64 k}{m}\right]^{\frac{1}{4}} n \mathbf{K}_{\max }\left[1+\sqrt{\frac{n-m}{n-1 / 2} \frac{1}{\beta(m, n)}} \log \frac{1}{\delta} d_{\max }^{\mathbf{K}} / \mathbf{K}_{\max }^{\frac{1}{2}}\right]^{\frac{1}{2}},
+	\end{gathered}
+	$$
+	where $\beta(m, n)=1-\frac{1}{2 \max \{m, n-m\}}$, $K_{max} = max_i K_{ii}$, and $d_k$ max the distance $max_{ij} = \sqrt{K_{ii}+K_{jj}-2K_{ij}}$.
+\end{theorem}
+
+The proof of Theorem \ref{thm:eb} can be found in reference \cite{nmsemble}.
+
+As can be seen, although \nysm is not the best rank-k approximation solution, it can be bounded witih probability at least $1-\delta$, which ensures the accuracy of \nysm when there is low rank structure originally of the matrix.
+\subsection{Drawbacks of \nysm}
+\label{subsec:dnm}
+
+Although \nysm\ includes a series of good solution to low rank matrix approximation problem and run faster than SVD, it may not perform well for kernel matrices can be dense and approximately full rank. 
+
+However, kernel matrices are not always low-rank. Set Gaussian kernel as an example, where $K(x_i, x_j) = e^{-\gamma\Vert x_i - x_j\Vert^2_2}$. $\gamma$ is the scale parameter here. It influences the rank structure of kernel matrix $G$. If $\gamma \to 0$, then $G\to ee^T,\ e\in \mathbb{R}^n$. In this case, $G$ has a low rank structure. While $\gamma \to \infty$, $G \to$ an identity matrix with full rank. $G$ has a block-clustering structure.
+
+\nysm\ performs well only when $G$ has a low rank structure ($\gamma$ is small). In the other case, even the SVD best rank-k cannot approximate well enough.
+
+\section{BKA}
+\label{sec:bka}
+
+Block Kernel Approximation (BKA) is one of the solution to $\gamma \to \infty$, Considering the discussion of kernel matrix rank discussed in subsection \ref{subsec:dnm}. BKA split the data (size $n$) in $c$ clusters. BKA approximates
+the kernel matrix as:
+
+\begin{equation}
+	G \approx \tilde{G} \equiv\left[\begin{array}{cccc}
+		G^{(1,1)} & 0 & \ldots & 0 \\
+		0 & G^{(2,2)} & \ldots & 0 \\
+		\vdots & \vdots & \ddots & \vdots \\
+		0 & 0 & \ldots & G^{(c, c)}
+	\end{array}\right]
+\end{equation}
+
+Off-diagonal matrices are ignored. BKA only considers the diagonal blocks. BKA is a good choice when the kernel matrix has a block structure. But in other cases, $\tilde{G}$ is far from $G$ because the ignorance of off-diagonal blocks. It should be noticed that the computation and storage of all diagonal blocks are also expensive.
+
+\subsection{Relation to K-Means Clustering}
+\label{subsec:rkmc}
+
+Error of BKA can be measured by 
+\begin{equation}
+	\|\tilde{G}-G\|_{F}^{2}=\sum_{i, j} K\left(x_{i}, x_{j}\right)^{2}-\sum_{s=1}^{c} \sum_{i, j \in \mathcal{V}_{s}} K\left(x_{i}, x_{j}\right)^{2}
+\end{equation}
+where $\mathcal{V}_{s}$ is a subset of $\{1,2,...,n\}$ and $\mathcal{V}_{1}, \mathcal{V}_{2},...,\mathcal{V}_{c}$ is a partition of data.
+
+To minimize the approximation error of BKA, $\|\tilde{G}-G\|_{F}^{2}$ should be minimized. Once the kernel function is specified, $\sum_{i, j} K\left(x_{i}, x_{j}\right)^{2}$ is a constant. So minimizing the error equals to maximizing $\sum_{s=1}^{c} \sum_{i, j \in \mathcal{V}_{s}} K\left(x_{i}, x_{j}\right)^{2}$. 
+
+If $\sum_{s=1}^{c} \sum_{i, j \in \mathcal{V}_{s}} K\left(x_{i}, x_{j}\right)^{2}$ is set a the goal to be maximized, all data will be grouped as one cluster inevitably. To balance the group size influence, the improved goal to be maximized is
+
+\begin{equation}
+	D^{k e r n e l}\left(\left\{\mathcal{V}_{s}\right\}_{s=1}^{c}\right) = 
+	\sum_{s=1}^{c} \frac{1}{|\mathcal{V}_{s}|} \sum_{i, j \in \mathcal{V}_{s}} K\left(x_{i}, x_{j}\right)^{2}
+\end{equation}
+
+
+Theorem \ref{thm:km} shows that for shift-invariant kernel matrices, after performing k-means clustering and rearranging data by k-means clusters, the maximum of $\sum_{s=1}^{c} \sum_{i, j \in \mathcal{V}_{s}} K\left(x_{i}, x_{j}\right)^{2}$ is achieved.
+
+\paragraph{Shift-Invariant Kernel Matrix}
+
+A kernel function $K(x_i, x_j)$ is shift-invariant if the kernel value depends only
+on $x_i - x_j$, which can be written as $K(x_i, x_j) = f(\eta(x_i - x_j))$. Note $u$ as the unit vector in the direction of $x_i - x_j$, then we have $K(x_i, x_j) = f(\eta(x_i - x_j)) = g_u(\eta \Vert x_i - x_j\Vert)$. The notation is used again later.
+
+\begin{theorem}
+	\label{thm:km}
+	For any shift-invariant kernel that satisfies that $g_{u}(t)$ is differentiable for all $t \neq 0$
+	$$
+	D^{k e r n e l}\left(\left\{\mathcal{V}_{s}\right\}_{s=1}^{c}\right) \geq \bar{C}-\eta^{2} R^{2} D^{k m e a n s}\left(\left\{\mathcal{V}_{s}\right\}_{s=1}^{c}\right)
+	$$
+	where $\bar{C}=\frac{n f(0)^{2}}{2}, R$ is a constant depending on the kernel function, and \\ $D^{k m e a n s} \equiv$ $\sum_{s=1}^{c} \sum_{i \in \mathcal{V}_{s}}\left\|x_{i}-m_{s}\right\|_{2}^{2}$ is the $k$-means objective function, where $m_{s}=\left(\sum_{i \in \mathcal{V}_{s}} x_{i}\right) /\left|\mathcal{V}_{s}\right|$, $s=1, \cdots, c$, are the cluster centers.
+\end{theorem}
+
+\begin{proof}
+By the mean value theorem,
+\begin{equation}
+	\begin{aligned}
+		K\left(x_{i}, x_{j}\right) &=g_{u}\left(\eta\left\|x_{i}-x_{j}\right\|_{2}\right) \\
+		&=g_{u}(0)+\eta g_{u}^{\prime}(s)\left\|x_{i}-x_{j}\right\|_{2}
+	\end{aligned}
+\end{equation}
+where $s \in\left(0,\left\|x_{i}-x_{j}\right\|_{2}\right)$.
+Notice that $f(0)=g_{u}(0)$ by definition. Define $R:=\sup _{\theta \in \mathbb{R}, \Vert v \Vert = 1}|g'_v(\theta)|$
+\begin{equation}
+	\begin{aligned}
+		f(0) &\leqslant K\left(x_{i}, x_{j}\right)+\eta R\left\|x_{i}-x_{j}\right\|_{2} \\
+		f^{2}(0) &\leqslant K\left(x_{i}, x_{j}\right)^{2}+\eta^{2} R^{2}\left\|x_{i}-x_{j}\right\|_{2}^{2}+2 \eta R K\left(x_{i}, x_{j}\right)\left\|x_{i}-x_{j}\right\|_{2} \\
+		f^{2}(0) & \leqslant 2 K\left(x_{i}, x_{j}\right)^{2}+2 \eta^{2} R^{2}\left\|x_{i}-x_{j}\right\|_{2}^{2} \\
+		K\left(x_{i}, x_{j}\right)^{2} & \geqslant \frac{1}{2} f^{2}(0)-\eta^{2} R^{2}\left\|x_{i}-x_{j}\right\|_{2}^{2}
+	\end{aligned}
+\end{equation}
+Plug it into $D^{k e r n e l}\left(\left\{\mathcal{V}_{s}\right\}_{s=1}^{c}\right)$, we have
+\begin{equation}
+	\label{eq:dkernel}
+\begin{aligned}
+	D^{\text {kernel }}\left(\left\{V_{s}\right\}_{s=1}^{c}\right) &=\sum_{s=1}^{c} \frac{1}{\left|V_{s}\right|} \sum_{i, j \in v_{s}} K\left(x_{i}, x_{j}\right)^{2} \\
+	&\geqslant \sum_{s=1}^{c} \frac{1}{\left|V_{s}\right|} \sum_{1, j \in V_{s}}\left(\frac{1}{2} f^{2}(0)-\eta^{2} R^{2}\left\|x_{i}-x_{j}\right\|_{2}^{2}\right) \\
+	&= \frac{1}{2} f^{2}(0) \sum_{s=1}^{c} \frac{1}{\| V_{s }\|}\left(\left|V_{s}\right|\left(\left|V_{s}\right|-1\right)\right) - \sum_{s=1}^{c} \frac{1}{\left|V_{s}\right|} \sum_{1, j \in V_{s}} \eta^{2} R^{2}\left\|x_{i}-x_{j}\right\|_{2}^{2} \\
+	&= \frac{n}{2}f^{2}(0) - \eta^{2} R^{2} \sum_{s=1}^{c} \frac{1}{\left|V_{s}\right|} \sum_{1, j \in V_{s}} \left\|x_{i}-x_{j}\right\|_{2}^{2}
+\end{aligned}
+\end{equation}
+On the other hand, according to definition, we have
+\begin{equation}
+	\label{eq:dkmeans}
+\begin{aligned}
+	D^{\text {kmeans }}\left(\left\{V_{s}\right\}_{s=1}^{c}\right) &= \sum_{s=1}^{c} \sum_{i \in V_{s}}\left\|x_{i}-m_{s}\right\|_{2}^{2} \\
+	&=\sum_{s=1}^{c} \sum_{i \in V_{s}}\left\|x_{i}-\frac{1}{\left|V_{s}\right|} \sum_{j \in V_{s}} x_{j}\right\|_{2}^{2} \\
+	&=\sum_{s=1}^{c} \frac{1}{\left|V_{s}\right|} \sum_{i \in V_{s}}\left\|\sum_{j \in V_{s}}\left(x_{i}-x_{j}\right)\right\|_{2}^{2} \\
+	&=\sum_{s=1}^{c} \frac{1}{\left|V_{s}\right|} \sum_{i, j \in V_{s}}\left\|x_{i}-x_{j}\right\|_{2}^{2}
+\end{aligned}
+\end{equation}
+Combine the inequation \ref{eq:dkernel} and equation \ref{eq:dkmeans}, the theorem is proven.
+\end{proof}
+
+Theorem \ref{thm:km} indicates that after clustering by k-means, $D^{\text {kernel }}\left(\left\{V_{s}\right\}_{s=1}^{c}\right)$ gets a higher lower bound. K-means is helpful to perform BKA.
+
+\subsection{Low Rank Structure}
+\label{subsec:lrs}
+
+It has been proved that after performing k-means, $D^{\text {kmeans }}\left(\left\{V_{s}\right\}_{s=1}^{c}\right)$, thus $D^{\text {kernel }}\left(\left\{V_{s}\right\}_{s=1}^{c}\right)$ gets a higher lower bound. In fact, all blocks have low rank structure after k-means clustering, both off-diagonal blocks and diagonal blocks.
+
+Before proving the above result, $\epsilon$-net theorem is introduced. $\epsilon$-net can also be called is $\epsilon$-covering.
+
+Define $\mathcal{N}(S, \eta)$ as the smallest possible cardinality of an $\eta$-covering of $S$, and $\varepsilon_{k}(S)$ as the minimum radius of balls to cover points in $S$.
+\begin{equation}
+	\begin{aligned}
+		&\mathcal{N}(S, \eta) = inf\{Card(K): K\text{ is a } \epsilon-covering\} \\
+		&\varepsilon_{k}(S)=\inf \left\{\varepsilon>0: \exists \text { closed balls } D_{1}, \ldots, D_{k} \text { with radius } \varepsilon \text { covering } S\right\}
+	\end{aligned}
+\end{equation}
+Notice that $\varepsilon_{k}(S) \leq \eta \Longleftrightarrow \mathcal{N}(S, \eta) \leq k$
+
+\begin{lemma}
+	Define 
+	\begin{equation}
+		\varphi_{k}(S)=\sup \left\{\delta>0 \mid \exists x_{1}, \ldots, x_{k+1} \in S \text { s.t. for } i \neq j, d\left(x_{i}, x_{j}\right)>2 \delta\right\}
+	\end{equation} then for all $\varphi_{k}(S) \leq \varepsilon_{k}(S) \leq 2 \varphi_{k}(S)$
+\end{lemma}
+
+It should be noticed that $\varphi_{k}(S)$ is actually the maximum radius of packing with $k$ balls. Then by definition of covering and packing, the lemma is clear.
+
+
+\begin{lemma}
+	\label{lm:net}
+	$B_R\in \mathbb{R}^d$ is the ball with zero center and $R$ radius. Then for all
+	$k \geq 1, k^{-\frac{1}{d}} \leq \varepsilon_{k}\left(B_{1}\right) \leq 4(k+1)^{-\frac{1}{d}}$
+\end{lemma}
+
+\begin{proof}
+	By definition of packing, $\varphi_{k}(B_1)\leq 1$. Let $\rho < \varphi_{k}(B_1)$, there exists $ x_{1}, \ldots, x_{k+1} \in S \text { s.t. for } i \neq j, d\left(x_{i}, x_{j}\right)>2 \rho$ then $\varphi_{k}(B_1)$ can be understood as the supremum of $\rho$. Let $D_j = \rho B_1 + x_j,\ j = 1, 2, ..., k+1$, then 
+	\begin{equation}
+		\|x\| \leq\left\|x-x_{j}\right\|+\left\|x_{j}\right\| \leq \rho+1<2.
+	\end{equation}
+	So $D_j \subseteq B_2$.
+	Define a measure $v$ in $\mathbb{R}^d$ which satistifies $\nu(\lambda B)=\lambda^{d} \nu(B)$ for all measurable set $B\in \mathbb{R}^d$. Consider that $D_j \subseteq B_2$ and $D_i \cap D_j = \emptyset, i, j = 1, ..., k+1$, we have 
+	\begin{equation}
+		\begin{aligned}
+			& \sum_{i=1}^{k+1} \nu\left(D_{i}\right) \leq \nu\left(B_{2}\right) \Rightarrow \sum_{i=1}^{k+1} \rho^{N} \nu\left(B_{1}\right) \leq 2^{N} \nu\left(B_{1}\right) \\
+			\Rightarrow \quad &(k+1) \rho^{N} \leq 2^{N} \Rightarrow \rho \leq 2(k+1)^{-\frac{1}{N}}
+		\end{aligned}
+	\end{equation}
+	Any $\rho$ satistifies $\rho \leq 2(k+1)^{-\frac{1}{N}}$, so the supremum satistifies the inequation as well. Thus $\varepsilon_{k}\left(B_{1}\right) \leq 2\varphi_{k}(S)  \leq 4(k+1)^{-\frac{1}{N}}$.
+	Similarly, the other part of lemma is proven. More details can be found in reference \cite{net}
+\end{proof}
+
+\begin{theorem}
+	\label{thm:net}
+	($\epsilon$-net Theorem) $\ln \mathcal{N}\left(B_{R}, \eta\right) \leq d \ln \left(\frac{4 R}{\eta}\right)$
+\end{theorem}
+
+\begin{proof}
+	Let $k=\lceil\left(\frac{4 R}{\eta}\right)^{N}-1\rceil$. Then 
+	\begin{equation}
+		\label{eq:tt}
+		k+1 \geq\left(\frac{4 R}{\eta}\right)^{N}
+		\Rightarrow \frac{\eta}{R} \geq 4(k+1)^{-\frac1N}
+	\end{equation}
+	By lemma \ref{lm:net}, $\varepsilon_{k}\left(B_{1}\right) \leq 4(k+1)^{-\frac{1}{d}}$. Combine it with inequation \ref{eq:tt}, we have
+	\begin{equation}
+		\label{eq:t}
+		\begin{aligned}
+			\varepsilon_{k}\left(B_{1}\right) \leq \frac{\eta}{R} \Rightarrow
+			\varepsilon_{k}\left(B_{R}\right) &\leq \eta \\
+			\mathcal{N}(B_R, \eta) &\leq k
+		\end{aligned}
+	\end{equation}
+	The last transformation is done because $\varepsilon_{k}(S) \leq \eta \Longleftrightarrow \mathcal{N}(S, \eta) \leq k$
+	What is more, we have $k \leq (\frac{4R}{\eta})^d$. Combine it with inequation \ref{eq:t}, $\epsilon$-net theorem is proven.
+\end{proof}
+
+\begin{theorem}
+	\label{thm:last}
+	Given data points $\boldsymbol{x}_{1}, \ldots, \boldsymbol{x}_{n} \in \mathbb{R}^{d}$, and a partition $\mathcal{V}_{1}, \ldots, \mathcal{V}_{c}$, and assume $f$ is Lipschitz continuous, then for any $s, t(s=t$ or $s \neq t)$
+	$$
+	\left\|G^{(s, t)}-G_{k}^{(s, t)}\right\|_{F} \leq 4 C k^{-1 / d} \sqrt{\left|\mathcal{V}_{s}\right|\left|\mathcal{V}_{t}\right|} \min \left(r_{s}, r_{t}\right),
+	$$
+	where $G_{k}^{(s, t)}$ is the best rank-k approximation to $G^{(s, t)} ; C$ is the Lipschitz constant of the shift-invariant function $f ; r_{s}$ is the radius of the s-th cluster.
+\end{theorem}
+
+\begin{proof}
+	In s-th cluster: $x_1, ..., x_{n_s}$, t-th cluster: $y_1, ..., y_{n_y}$ \\
+	Suppose the radius of t-th cluster is $r_t$. Apply $\epsilon$-net theorem \ref{thm:net} for t-th cluster, we can find $k$ balls with radius $\hat r=k^{-1/d}4r_t$ to cover $\{y_j\}_{j = 1}^{n_t}$. \\
+	Assume centers of the balls for t-th cluster are $m_1, m_2,..., m_k$. Define 
+	\begin{equation}
+	\bar G^{(s,t)} = \bar U \bar V^T
+	\end{equation}
+\begin{equation}
+	\left\{
+	\begin{aligned}
+		&\bar{U}_{i, q} = K(x_{i}, m_{q}) \\
+		&\bar{V}_{j, q}= I\{y_{j} \in Ball(m_q)\}
+	\end{aligned}
+	\right.
+\end{equation}
+$\bar G^{(s,t)}$ has a low rank structure for $rank(\bar G^{(s,t)}) \leq rank(\bar U) \leq k$. \\
+Note $\left(G^{(s, t)}\right)^{*}$ as the best rank-k approximation, then
+\begin{equation}
+	\begin{aligned}
+		\left\|G^{(s, t)}-\left(G^{(s, t)}\right)^{*}\right\|_{F} & \leqslant\left\|G^{(s, t)}-\bar{G}^{(s, t)}\right\|_{F} \\
+		& \leqslant \sqrt{\sum_{i, j}\left(G_{i j}^{(s, t)}-\bar{G}_{i, j}^{(s, t)}\right)^{2}} \\
+		& \leqslant \sqrt{n_{s} n_{t} c^{2}\left(k^{-\frac{1}{d}} 4 r_{t}\right)^{2}} \\
+		&=C k^{-\frac{1}{d}} 4 r_{t} \sqrt{n_{s} n_{t}}
+	\end{aligned}
+\end{equation}
+Similarly, apply $\epsilon$-net theorem \ref{thm:net} for s-th cluster, we have both
+\begin{equation}
+	\left\{
+	\begin{aligned}
+		&\left\|G^{(s, t)}-\left(G^{(s, t)}\right)^{*}\right\|_{F} \leqslant C \cdot R^{-\frac{1}{d}} 4 r_{t} \sqrt{n_{s} n_{t}} \\
+		&\left\|G^{(s, t)}-\left(G^{(s, t)}\right)^{*}\right\|_{F} \leqslant C \cdot k^{-\frac{1}{d}} 4 r_{s} \sqrt{n_{s} n_{t}}
+	\end{aligned}
+	\right.
+\end{equation}
+\begin{equation}
+	\Rightarrow \left\|G^{(s, t)}-\left(G^{(s, t)}\right)^{*}\right\|_{F} \leqslant C \cdot k^{-\frac{1}{d}} 4 \sqrt{n_{s} n_{t}} min(r_{s}, r_{t}).
+\end{equation}
+The theorem has been proven.
+\end{proof}
+
+The difference between best rank-k approximation matrix and the original matrix can be bounded by $C \cdot k^{-\frac{1}{d}} 4 \sqrt{n_{s} n_{t}} min(r_{s}, r_{t})$, where $s = t$ or $s \neq t$. The conditions of the theorem are well satisfied for most of kernel functions are Lipschitz continuous.
+
+Theorem \ref{thm:last} suggests that each block(diagonal or off-diagonal block) of the kernel matrix will be low rank if we find the partition by k-means and the radius of the cluster is small. Inspired by this theorem, MEKA in Section \ref{sec:meka} is raised.
+
+
+\section{MEKA} % =====================================================
+\label{sec:meka}
+
+In the previous pages, several common method of low rank kernel matrix approximation have been discussed. SVD yeilds the best rank-k approximation with heavy storage and computation burden. \nysm approximate the result of SVD with less computation but only works with matrix with original low rank structure. The condition is not always satisfied in when it comes to kernel matrix. BKA performs well for block structured matrix, which is not always satisfied as well. But after k-means clustering, diagonal block error decrease and all blocks have low rank structure.
+
+Memory Efficient Kernel Approximation (MEKA) is proposed in reference \cite{meka} to take advantages of \nysm and BKA with more storage and computation efficiency.
+
+\subsection{Steps of MEKA}
+\label{subsec:smeka}
+
+MEKA first performs BKA, with k-means clustering for less diagonal error and low rank structure for all blocks. For each diagonal blocks, \nysm is applied. Different from BKA, off-diagonal blocks are not ignored. Those off-diagonal blocks do not use \nysm seperately for efficiency. Instead, a link matrix $L^{(s,t)}$ is computated to link $G^{(s,t)}$ with $G^{(s,s)}$ and $G^{(t,t)}$. Low rank structure of all blocks guarantees the accuracy of \nysm, the scale of each problem is also much smaller. Reference \cite{meka} also show that the principal angles between the dominant singular subspace of a
+diagonal block $G^{(s,s)}$ and that of an off-diagonal block $G^{(s,t)}$ for different ranks k are similar. There is substantial overlap between the dominant singular subspaces of the diagonal and off-diagonal block. So the idea of link matrix makes sense.
+
+\begin{algorithm}
+	\caption{Memory Efficient Kernel Approximation (MEKA)}
+	\label{ag:meka}
+	\SetKwInOut{KwIn}{Input}
+	\SetKwInOut{KwOut}{Output}
+	\KwIn{Data points ${(xi)}_{i=1}^{n}$, scaling parameter $\gamma$, rank $k$, and no. of clusters $c$.}
+	\KwOut{The rank-ck approximation $G = WLW^T$. Generate the partition $V_1,..., V_c$ by k-means;}
+	\For{$s = 1, ..., c$}{
+	Perform the rank-k approximation $G^{(s, s)} \approx W^{(s)} L^{(s, s)}\left(W^{(s)}\right)^{T}$ by standard \nysm
+	}
+	\ForEach{$(s,t), s\neq t$}{
+	Sample a submatrix $\bar G^{(s,t)}$ from $G^{(s,t)}$ with row index set $v_s$ and column index set $v_t$; \\
+	Form $W_{v_s}^{(s)}$ by selecting the rows in $W^{(s)}$ according to index set $v_s$;\\
+	Form $W_{v_t}^{(t)}$ by selecting the rows in $W^{(t)}$ according to index set $v_t$;\\
+	Solve the least squares problem: $\bar{G}^{(s, t)} \approx W_{v_{s}}^{(s)} L^{(s, t)}\left(W_{v_{t}}^{(t)}\right)^{T}$ to get $L^{(s, t)}$.
+	}
+\end{algorithm}
+
+\paragraph{Compute $W^{(s)}$}
+Since we aim to deal with dense kernel matrices of huge size, we use the standard \nysm approximation to compute low-rank basis for each diagonal block. By theorem \ref{thm:nmlr}, we have $G^{(s, s)} \approx W^{(s)} L^{(s, s)}\left(W^{(s)}\right)^{T}$.
+
+\paragraph{Compute $L^{(s, t)}$}
+
+We approximate $G^{(s, t)}$ by $W^{(s)} L^{(s, t)}\left(W^{(t)}\right)^{T}$. Intuitively, the goal should be minimizing $\left\|G^{(s, t)}-W^{(s)} L^{(s, t)}\left(W^{(t)}\right)^{T}\right\|_{F}$. However, the scale of the problem is too large, the idea of sampling is applied again here to reduce problem size.
+
+\paragraph{Choose $k_s$ for Each Cluster}
+
+The partition of data to $c$ clusters are done by k-means. $k_s$ means we do rank-$k_s$ approximation for diagonal block $G^{(s,s)}$. For simplicity, we set $k_s = k, \forall s = 1,..., c$ in practice. However, the method based on eigenvalue shows good theoretical property. Suppose that data has been standarized, then the steps are as follows.
+\begin{enumerate}
+	\item Do reduced eigenvalue decomposition for each diagonal blocks. Get top-2k eigenvalue of each blocks.
+	\item Rank all $2ck$ eigenvalues, select top-ck ones. The number of selected eigenvalues are $k_s$
+\end{enumerate}
+
+Here, only top-2k eigenvalues are computed instead of all eigenvalue for efficiency consideration.
+
+\begin{theorem}
+	Let $\Delta$ denote a matrix consisting of all off-diagonal blocks of $G$, so $\Delta^{(s, t)}=$ $G^{(s, t)}$ for $s \neq t$ and all zeros when $s=t$. We sample cm points from the dataset uniformly at random without replacement and split them according to the partition from $k$-means, such that each cluster has $m_{s}$ benchmark points and $\sum_{s=1}^{c} m_{s}=\mathrm{cm} .$ Let $G_{c k}$ be the best rank-ck approximation of $G$, and $\tilde{G}$ be the rank-ck approximation from MEKA. Suppose we choose the rank $k_{s}$ for each diagonal block using the eigenvalue based approach as mentioned in Section 5.1, then with probability at least $1-\delta$, the following inequalities hold for any sample of size $\mathrm{cm}$ :
+	\begin{equation}
+		\begin{aligned}
+			&\|G-\tilde{G}\|_{2} \leq\left\|G-G_{c k}\right\|_{2}+\frac{1}{\sqrt{c}} \frac{2 n}{\sqrt{m}} G_{\max }(1+\theta)+2\|\Delta\|_{2} \\
+			&\|G-\tilde{G}\|_{F} \leq\left\|G-G_{c k}\right\|_{F}+\left(\frac{64 k}{m}\right)^{\frac{1}{4}} n G_{\max }(1+\theta)^{\frac{1}{2}}+2\|\Delta\|_{F}
+		\end{aligned}
+	\end{equation}
+	where $\theta=\sqrt{\frac{n-m}{n-0.5} \frac{1}{\beta(m, n)} \log \frac{1}{\delta}} d_{\max }^{G} / G_{\max }^{\frac{1}{2}} ; \beta(m, n)=1-\frac{1}{2 \max \{m, n-m\}} ; G_{\max }=\max _{i} G_{i i} ;$ and $d_{\max }^{G}$ represents the distance $\max _{i j} \sqrt{G_{i i}+G_{j j}-2 G_{i j}}$.
+\end{theorem}
+
+The bound is similar to \nysm. The theorem ensure the accuracy of MEKA.
+
+\subsection{Time Complexity and Storage Usage}
+\label{subsec:tcsu}
+
+MEKA is not only accurate, but also computation and storage efficient, which is an important advantage. The used storage and time complexity is listed here as Table \ref{tb:tc} for completeness of the report. Details of the complexity can also be found in reference \cite{meka}
+
+\begin{table}
+	\caption{Time Complexity of Low Rank Approximation Method}
+	\label{tb:tc}
+\begin{tabular}{cccc}
+	\toprule
+	 Method & Storage & Rank & Time Complexity \\
+	 \midrule
+	 \nysm & $O(c n k)$ & $c k$ & $O\left(c n m(c k+d)+(c m)^{3}\right)$ \\
+	 SVD & $O(c n k)$ & $c k$ & $O\left(n^{3}+n^{2} d\right)$ \\
+	 MEKA & $O\left(n k+(c k)^{2}\right)$ & $c k$ & $O\left(n m(k+d)+c m^{3}+T_{L}+T_{C}\right)$ \\
+	\bottomrule
+\end{tabular}
+\end{table}
+
+
+\section{Summary \& Discussion} % =====================================================
+\label{sec:sd}
+
+In this report, some common low rank kernel matrix approximation methods are studied. Kernel matrix is the object of approximation for its importance and universality. SVD is the theoretical best rank-k approximation with low efficiency. \nysm\ is a widely used method to make up for SVD's cost with sacrifice of accuracy in the case of kernel matrix without low rank structure. BKA aims to settle problems with block structured kernel matrix. K-means clustering plays an important part in BKA to ensure low approximation error. Finally, MEKA is briefly introduced as a combination of \nysm\ and BKA. MEKA considers both original low rank structure and block structure. The time and storage efficiency is another superiority, but not emphasized in this report.
+
+There are many methods to do low rank approximation. One key idea is sampling. Special structures of matrix should also be considered. Both \nysm and BKA suffer a loss from only considering low rank structure or block structure. MEKA outperforms because of detailed consideration of structures. Another inspiring idea is preprocessing data to form better property, such as k-means clustering here.
+
+The report is the extension of the topics: \textit{low rank approximation} and \textit{covering and packing} discussed in class.
+
+
+\bibliographystyle{plain}
+\bibliography{ref}
+
+\end{document}
